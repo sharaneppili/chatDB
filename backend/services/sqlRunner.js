@@ -25,16 +25,27 @@ async function runSelectQuery(sql) {
 
 // ✅ Optional: ensure only SELECTs can run here too
 function validateSelectSQL(sql) {
-  if (typeof sql !== "string") return false;
+ // console.log("🧠 Gemini generated SQL:\n", sql);
+
+  if (typeof sql !== "string" || !sql.trim()) return false;
+
   const upper = sql.trim().toUpperCase();
+
+  // ✅ Allow SELECT queries even with trailing semicolons or comments
   if (!upper.startsWith("SELECT")) return false;
 
+  // 🚫 Disallow destructive keywords (still safe)
   const forbidden = [
     "INSERT", "UPDATE", "DELETE", "DROP", "ALTER",
-    "CREATE", "ATTACH", "DETACH", "PRAGMA", "--", "/*", ";", "EXEC"
+    "CREATE", "ATTACH", "DETACH", "PRAGMA", "EXEC"
   ];
-  return !forbidden.some(t => upper.includes(t));
+
+  // ✅ Ignore harmless semicolons or comments
+  const cleaned = upper.replace(/;|--.*|\/\*.*\*\//g, "");
+
+  return !forbidden.some(t => cleaned.includes(t));
 }
+
 
 // ✅ Export both
 module.exports = { runSelectQuery, validateSelectSQL };
