@@ -1,37 +1,46 @@
-const sqlite3 = require('sqlite3').verbose();
-const DB_PATH = './db/database.db';
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
 
-function openDb() {
-  return new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY);
-}
+// ✅ Define your SQLite database path
+const dbPath = path.resolve(__dirname, "../db/database.db");
 
-// Get all table names
+// ✅ Connect to database
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) console.error("❌ Database connection failed:", err.message);
+  else console.log("✅ Connected to SQLite database");
+});
+
+// 🔹 Get all table names
 function getAllTables() {
-  const db = openDb();
   return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`,
-      [],
-      (err, rows) => {
-        db.close();
-        if (err) return reject(err);
-        resolve(rows.map(r => r.name));
-      }
-    );
-  });
-}
-
-// Get schema (columns) of one specific table
-function getTableSchema(tableName) {
-  const db = openDb();
-  return new Promise((resolve, reject) => {
-    db.all(`PRAGMA table_info(${tableName});`, [], (err, columns) => {
-      db.close();
-      if (err) return reject(err);
-      const cols = columns.map(c => c.name);
-      resolve({ name: tableName, columns: cols });
+    db.all("SELECT name FROM sqlite_master WHERE type='table';", (err, tables) => {
+      if (err) reject(err);
+      else resolve(tables.map((t) => t.name));
     });
   });
 }
 
-module.exports = { getAllTables, getTableSchema };
+// 🔹 Get schema (column names) for a given table
+function getTableSchema(tableName) {
+  return new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${tableName});`, (err, columns) => {
+      if (err) reject(err);
+      else resolve(columns.map((col) => col.name));
+    });
+  });
+}
+
+// 🔹 Build full database schema (all tables + their columns)
+async function getDatabaseSchema() {
+  const tables = await getAllTables();
+  const schema = { tables: [] };
+
+  for (const table of tables) {
+    const columns = await getTableSchema(table);
+    schema.tables.push({ name: table, columns });
+  }
+
+  return schema;
+}
+
+module.exports = { getAllTables, getTableSchema, getDatabaseSchema };
