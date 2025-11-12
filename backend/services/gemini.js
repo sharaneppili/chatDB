@@ -3,34 +3,11 @@ const axios = require("axios");
 async function generateSQLWithGemini({ question, schema }) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-  // ✅ Correct API URL (includes key)
+  // ✅ Correct Gemini endpoint
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-  const promp = `
-You are a data analyst assistant that converts natural language questions into SQL queries and recommends visualization formats.
-
-Database schema:
-${JSON.stringify(schema, null, 2)}
-
-User question: "${question}"
-
-Respond in *valid JSON* format only like this:
-{
-  "sql": "SELECT ...",
-  "display": "table" or "chart",
-  "chartType": "bar" or "line" or "pie" or null,
-  "x": "column_name or null",
-  "y": "column_name or null"
-}
-
-Rules:
-- Always generate a safe, read-only SELECT query.
-- If user mentions 'plot', 'graph', 'trend', or 'chart' → display = "chart".
-- Otherwise, display = "table".
-- Guess a reasonable chartType (line for time, bar for categories).
-- Respond only with JSON, no code blocks.
-`;
-const prompt = `
+  // ✅ Your original high-quality prompt (kept as is)
+  const prompt = `
 You are an intelligent data analyst AI that converts user questions about a SQL database into queries and visualization instructions.
 
 Database schema:
@@ -55,11 +32,15 @@ Rules:
    - If user mentions region, category, or comparison → chartType = "bar"
    - If query aggregates (SUM, AVG, COUNT) → chartType = "bar"
    - Otherwise chartType = "table"
-4. Set display = "chart" whenever a chartType is chosen, even if user didn't say 'plot' or 'graph'.
-5. Guess x (category/time column) and y (numeric/aggregate column) from SQL.
-6. Respond ONLY with JSON — no explanation.
+4. Only use tables listed in the schema above.
+   - If the user mentions a table not in the schema, respond with exactly this text: "TABLE_NOT_FOUND".
+5. Never guess or assume a table name.
+6. Never include INSERT, UPDATE, DELETE, DROP, ALTER, or CREATE commands.
+7. Return ONLY a valid SQL SELECT query — no explanations or text.
+8. Set display = "chart" whenever a chartType is chosen, even if user didn’t say 'plot' or 'graph'.
+9. Guess x (category/time column) and y (numeric/aggregate column) from SQL.
+10. Respond ONLY with JSON — no explanation.
 `;
-
 
   try {
     const response = await axios.post(
@@ -67,35 +48,37 @@ Rules:
       {
         contents: [{ parts: [{ text: prompt }] }],
       },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      { headers: { "Content-Type": "application/json" } }
     );
 
     let text =
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
 
-    // Clean up code fences if Gemini wraps JSON in ```json ... ```
+    // Clean up markdown code fences if present
     text = text.replace(/```json|```/g, "").trim();
 
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-      console.log("🧠 Gemini generated SQL:\n", parsed);
-    } catch (err) {
-      console.error("❌ JSON parsing error:", err.message);
-      parsed = {
-        sql: "",
-        display: "table",
-        chartType: null,
-        x: null,
-        y: null,
-      };
+    // 🚨 Check for explicit "TABLE_NOT_FOUND"
+    if (text.includes("TABLE_NOT_FOUND")) {
+      console.warn("❌ Gemini reported: Table not found.");
+      return { error: "Table not found in database." };
     }
 
-    return parsed;
+    // 🚨 Check for disallowed commands
+    if (/insert|update|delete|drop|alter|create/i.test(text)) {
+      console.warn("❌ Unsafe SQL keyword detected.");
+      return { error: "Only SELECT queries are allowed." };
+    }
+
+    // ✅ Safe JSON parse
+    try {
+      const parsed = JSON.parse(text);
+      console.log("🧠 Gemini generated SQL:\n", parsed);
+      return parsed;
+    } catch (err) {
+      console.error("❌ JSON parsing error:", err.message);
+      console.warn("⚠️ Gemini raw output:", text);
+      return { error: "Gemini did not return valid SQL JSON." };
+    }
   } catch (error) {
     console.error("❌ Gemini API Error Response:");
     if (error.response) {
@@ -104,7 +87,7 @@ Rules:
     } else {
       console.error(error.message);
     }
-    throw new Error("Gemini API request failed");
+    return { error: "Gemini API request failed." };
   }
 }
 
