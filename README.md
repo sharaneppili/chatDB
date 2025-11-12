@@ -7,7 +7,7 @@ Transform natural language into SQL queries, interactive visualizations, AI-driv
 ChatDB is an AI-powered data assistant that lets users query any database using simple English.
 It automatically:
 
-Converts natural language to SQL queries using Google Gemini API
+Converts natural language to SQL queries 
 
 Executes them securely on SQLite or MySQL
 
@@ -21,7 +21,7 @@ It’s like having ChatGPT for your databases, with charts, reasoning, and forec
 
 ✨ Features
 Feature	Description
-💬 Natural Language → SQL	Converts plain English into valid SQL queries using Gemini AI
+💬 Natural Language → SQL	Converts plain English into valid SQL queries
 📊 Smart Visualization	Automatically displays results as tables, bar/line/pie charts
 🔍 AI Insights	Get trend analysis, correlation findings, and statistical insights
 📈 Predictive Analysis	Forecasts future trends using regression models
@@ -36,7 +36,7 @@ Frontend (React)
     ▼
 Backend (Node.js + Express)
     │
-    ├── Gemini API → Generates SQL + chart type
+    ├── LLM → Generates SQL + chart type
     ├── SQLite/MySQL → Executes validated SQL
     ├── ML Regression → Predicts & forecasts
     ├── Stats Engine → Generates insights
@@ -58,7 +58,7 @@ CSS3
 
 Node.js + Express
 
-Google Gemini API
+
 
 SQLite3 (default local DB)
 
@@ -77,12 +77,12 @@ ChatDB/
 │   ├── server.js                  # Main backend server
 │   ├── db/                        # Local SQLite database
 │   ├── services/
-│   │   ├── gemini.js              # Gemini API handler
+│   │   ├── gemini.js            
 │   │   ├── sqlRunner.js           # SQL execution & validation
 │   │   ├── schema.js              # Database schema extractor
 │   │   ├── insights.js            # AI-driven insight generation
 │   │   ├── predict.js             # Forecast & inverse prediction logic
-│   └── .env                       # Gemini & DB credentials
+│   └── .env                      
 │
 ├── frontend/
 │   ├── src/
